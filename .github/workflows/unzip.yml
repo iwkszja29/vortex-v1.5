@@ -1,0 +1,40 @@
+name: Extract Vortex Bot to Main
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Extract bot files
+        run: |
+          set -e
+
+          mkdir -p /tmp/vortex
+          unzip -o "Vortex-magnus-bot-main (3).zip" -d /tmp/vortex
+
+          SOURCE=$(find /tmp/vortex -mindepth 1 -maxdepth 1 -type d | head -n 1)
+
+          if [ -z "$SOURCE" ]; then
+            SOURCE=/tmp/vortex
+          fi
+
+          rsync -a --exclude='.github/' "$SOURCE"/ ./
+
+          rm -f "Vortex-magnus-bot-main (3).zip"
+
+          git add -A -- . ':!.github/workflows'
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Extract Vortex bot files into main" || true
+          git push origin HEAD:main
