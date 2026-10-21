@@ -1,0 +1,1 @@
+module.exports={name:'info',aliases:['معلومات'],description:'معلومات البوت',async execute(api,event){const s=event.runtime.getState();return api.sendMessage(`🌀 ${s.bot}\nVersion: ${s.version}\nStatus: ${s.status}\nCommands: ${s.commands}\nUptime: ${Math.floor(s.uptimeMs/1000)}s`,event.threadID,event.messageID);}};

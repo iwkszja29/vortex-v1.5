@@ -1,0 +1,1 @@
+module.exports={name:'uid',aliases:['id','ايدي'],description:'عرض معرف المستخدم أو المحادثة',async execute(api,event){return api.sendMessage(`👤 Sender: ${event.senderID||'غير متاح'}\n💬 Thread: ${event.threadID||'غير متاح'}`,event.threadID,event.messageID);}};

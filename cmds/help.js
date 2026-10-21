@@ -1,0 +1,1 @@
+module.exports={name:'help',aliases:['مساعدة','اوامر'],description:'عرض الأوامر المتاحة',async execute(api,event){const list=event.runtime.getCommands().map(c=>`${event.config.prefix}${c.name} — ${c.description}`).join('\n');return api.sendMessage(`🌀 VORTEX | COMMANDS\n\n${list||'لا توجد أوامر محملة.'}`,event.threadID,event.messageID);}};

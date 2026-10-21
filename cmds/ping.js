@@ -1,0 +1,1 @@
+module.exports={name:'ping',aliases:['بنغ'],description:'اختبار استجابة VORTEX',async execute(api,event){const ms=Date.now()-(event.startedAt||Date.now());return api.sendMessage(`🏓 VORTEX ONLINE\n⏱️ ${ms} ms`,event.threadID,event.messageID);}};

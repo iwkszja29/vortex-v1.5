@@ -1,0 +1,1 @@
+module.exports={name:'reload',aliases:['تحديث'],description:'إعادة تحميل ملفات الأوامر',adminOnly:true,async execute(api,event){const result=event.runtime.refreshCommands();return api.sendMessage(`♻️ تم تحديث الأوامر.\nLoaded: ${result.count}\nErrors: ${result.errors.length}`,event.threadID,event.messageID);}};

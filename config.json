@@ -1,0 +1,12 @@
+{
+  "botName": "VORTEX",
+  "prefix": "*",
+  "language": "ar",
+  "dashboard": {
+    "pollIntervalMs": 5000
+  },
+  "connection": {
+    "maxBackoffMs": 60000,
+    "baseBackoffMs": 2000
+  }
+}

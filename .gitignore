@@ -1,0 +1,14 @@
+node_modules/
+.env
+.env.*
+!.env.example
+data/
+*.appstate
+appstate*.json
+cookies*.json
+session*.json
+*.log
+coverage/
+.DS_Store
+*.tmp
+*.bak
