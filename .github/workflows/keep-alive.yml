@@ -10,11 +10,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Ping Render service
-        env:
-          TARGET_URL: ${{ vars.TARGET_URL }}
         run: |
-          if [ -z "$TARGET_URL" ]; then
-            echo "Set TARGET_URL in repository Settings > Secrets and variables > Actions > Variables."
-            exit 1
-          fi
-          curl --fail --silent --show-error --max-time 60 "$TARGET_URL"
+          curl --fail --silent --show-error --max-time 60 "https://vortex-v2-ssfw.onrender.com"
