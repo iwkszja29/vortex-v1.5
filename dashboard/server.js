@@ -81,7 +81,7 @@ async function startDashboard({ config, logger, runtime, accounts = {} }) {
     const pathOnly = req.originalUrl.split('?')[0];
     if (pathOnly === '/api/logout') return next();
     const readOnly = req.method === 'GET' && (
-      ['/api/status', '/api/commands'].includes(pathOnly) ||
+      ['/api/status', '/api/commands'].includes(pathOnly) || pathOnly.startsWith('/api/messenger/') ||
       pathOnly === '/api/events' || pathOnly === '/api/logs'
     );
     if (readOnly) return next();
@@ -129,6 +129,62 @@ async function startDashboard({ config, logger, runtime, accounts = {} }) {
   app.post('/api/accounts/2/connection/disconnect', async (req, res) => {
     if (!secondaryRuntime) return res.status(503).json({ error: 'Second account is not configured' });
     res.json(await secondaryRuntime.disconnect());
+  });
+
+  function messengerRuntime(req, res) {
+    const selected = req.query.account === '2' ? secondaryRuntime : runtime;
+    if (!selected) { res.status(503).json({ error: 'Selected account is not configured.' }); return null; }
+    const state = selected.getState();
+    if (!state.appStateConfigured) { res.status(403).json({ error: 'Link this account’s AppState/cookies first to unlock Messenger.' }); return null; }
+    if (!state.connected) { res.status(409).json({ error: 'The linked account is offline. Connect it before opening Messenger.' }); return null; }
+    return selected;
+  }
+  app.get('/api/messenger/status', (req, res) => {
+    const selected = req.query.account === '2' ? secondaryRuntime : runtime;
+    if (!selected) return res.json({ configured: false, connected: false, account: req.query.account === '2' ? '2' : '1' });
+    const state = selected.getState();
+    res.json({ configured: !!state.appStateConfigured, connected: !!state.connected, account: req.query.account === '2' ? '2' : '1' });
+  });
+  app.get('/api/messenger/threads', async (req, res) => {
+    const selected = messengerRuntime(req, res); if (!selected) return;
+    try {
+      const folder = String(req.query.folder || 'inbox');
+      const threads = await selected.listMessengerThreads(folder);
+      res.json({ folder, threads: threads.map(t => ({
+        threadID: String(t.threadID || t.threadId || t.id || ''),
+        name: String(t.name || t.threadName || t.snippet || 'Messenger conversation').slice(0, 180),
+        snippet: String(t.snippet || t.lastMessage || '').slice(0, 300),
+        timestamp: Number(t.timestamp || t.lastMessageTimestamp || 0) || null,
+        unreadCount: Number(t.unreadCount || t.unread_count || 0) || 0,
+        isGroup: !!(t.isGroup || t.is_group)
+      })).filter(t => /^\d{1,40}$/.test(t.threadID)) });
+    } catch (e) { res.status(503).json({ error: String(e.message || e).slice(0, 220) }); }
+  });
+  app.get('/api/messenger/threads/:id/messages', async (req, res) => {
+    const selected = messengerRuntime(req, res); if (!selected) return;
+    try {
+      const messages = await selected.getMessengerHistory(req.params.id, 40);
+      res.json({ messages: messages.map(m => ({
+        messageID: String(m.messageID || m.messageId || m.id || ''),
+        senderID: String(m.senderID || m.senderId || ''),
+        body: String(m.body || m.message || '').slice(0, 3000),
+        timestamp: Number(m.timestamp || m.timestampMs || 0) || null,
+        isUnsent: !!m.isUnsent
+      })) });
+    } catch (e) { res.status(503).json({ error: String(e.message || e).slice(0, 220) }); }
+  });
+  app.post('/api/messenger/threads/:id/messages', async (req, res) => {
+    const selected = messengerRuntime(req, res); if (!selected) return;
+    try { res.json(await selected.sendMessengerReply(req.params.id, req.body?.message)); }
+    catch (e) { res.status(503).json({ error: String(e.message || e).slice(0, 220) }); }
+  });
+  app.post('/api/messenger/requests/:id', async (req, res) => {
+    const selected = messengerRuntime(req, res); if (!selected) return;
+    try {
+      const action = req.body?.action;
+      if (!['accept', 'decline'].includes(action)) return res.status(400).json({ error: 'Action must be accept or decline.' });
+      res.json(await selected.handleMessengerRequest(req.params.id, action === 'accept'));
+    } catch (e) { res.status(503).json({ error: String(e.message || e).slice(0, 220) }); }
   });
 
   app.get('/api/status', (req, res) => res.json(runtime.getState()));

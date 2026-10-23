@@ -451,6 +451,73 @@ function createBotRuntime({ config, logger }) {
       manualDisconnect = false;
       try { await runtime.connect(); } catch { if (!sessionCleared) reconnectManager.schedule(); }
     },
+    async listMessengerThreads(folder = 'inbox') {
+      if (!api || status !== 'connected') throw new Error('Connect the account with a valid AppState first.');
+      if (typeof api.getThreadList !== 'function') throw new Error('This FCA version does not support listing Messenger threads.');
+      const tags = { inbox: ['INBOX'], requests: ['PENDING'], spam: ['OTHER'] };
+      if (!Object.prototype.hasOwnProperty.call(tags, folder)) throw new Error('Invalid Messenger folder.');
+      return new Promise((resolve, reject) => {
+        let done = false;
+        const timer = setTimeout(() => finish(new Error('Messenger request timed out.')), 15000);
+        function finish(error, value) {
+          if (done) return; done = true; clearTimeout(timer);
+          error ? reject(new Error(String(error.message || error).slice(0, 220))) : resolve(Array.isArray(value) ? value : []);
+        }
+        try {
+          const result = api.getThreadList(40, null, tags[folder], finish);
+          if (result && typeof result.then === 'function') result.then(value => finish(null, value), finish);
+        } catch (error) { finish(error); }
+      });
+    },
+    async getMessengerHistory(threadID, limit = 40) {
+      if (!api || status !== 'connected') throw new Error('Connect the account with a valid AppState first.');
+      if (!/^\d{1,40}$/.test(String(threadID))) throw new Error('Invalid thread ID.');
+      if (typeof api.getThreadHistory !== 'function') throw new Error('This FCA version does not support conversation history.');
+      return new Promise((resolve, reject) => {
+        let done = false; const timer = setTimeout(() => finish(new Error('Messenger history request timed out.')), 15000);
+        function finish(error, value) {
+          if (done) return; done = true; clearTimeout(timer);
+          error ? reject(new Error(String(error.message || error).slice(0, 220))) : resolve(Array.isArray(value) ? value : []);
+        }
+        try {
+          const result = api.getThreadHistory(String(threadID), Math.max(1, Math.min(60, Number(limit) || 40)), null, finish);
+          if (result && typeof result.then === 'function') result.then(value => finish(null, value), finish);
+        } catch (error) { finish(error); }
+      });
+    },
+    async sendMessengerReply(threadID, message) {
+      if (!api || status !== 'connected') throw new Error('Connect the account with a valid AppState first.');
+      if (!/^\d{1,40}$/.test(String(threadID))) throw new Error('Invalid thread ID.');
+      if (typeof message !== 'string' || !message.trim() || message.length > 2000) throw new Error('Message must contain 1–2000 characters.');
+      if (typeof api.sendMessage !== 'function') throw new Error('This FCA version does not support sending Messenger replies.');
+      return new Promise((resolve, reject) => {
+        let done = false; const timer = setTimeout(() => finish(new Error('Message send timed out.')), 15000);
+        function finish(error, value) {
+          if (done) return; done = true; clearTimeout(timer);
+          error ? reject(new Error(String(error.message || error).slice(0, 220))) : resolve({ sent: true, result: value || null });
+        }
+        try {
+          const result = api.sendMessage(message.trim(), String(threadID), finish);
+          if (result && typeof result.then === 'function') result.then(value => finish(null, value), finish);
+        } catch (error) { finish(error); }
+      });
+    },
+    async handleMessengerRequest(threadID, accept = true) {
+      if (!api || status !== 'connected') throw new Error('Connect the account with a valid AppState first.');
+      if (!/^\d{1,40}$/.test(String(threadID))) throw new Error('Invalid thread ID.');
+      if (typeof api.handleMessageRequest !== 'function') throw new Error('This FCA version does not expose message-request accept/decline.');
+      return new Promise((resolve, reject) => {
+        let done = false; const timer = setTimeout(() => finish(new Error('Message-request action timed out.')), 15000);
+        function finish(error, value) {
+          if (done) return; done = true; clearTimeout(timer);
+          error ? reject(new Error(String(error.message || error).slice(0, 220))) : resolve({ ok: true, result: value || null });
+        }
+        try {
+          const result = api.handleMessageRequest(String(threadID), !!accept, finish);
+          if (result && typeof result.then === 'function') result.then(value => finish(null, value), finish);
+        } catch (error) { finish(error); }
+      });
+    },
     get api() { return api; },
     async editCommand(name, source) {
       if (!/^[a-z0-9_-]{1,32}\.js$/i.test(name)) throw new Error('Invalid command filename');
