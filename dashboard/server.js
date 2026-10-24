@@ -10,8 +10,8 @@ const { validateConfig } = require('../utils/config');
 const roleLists = require('../utils/roleLists');
 
 async function startDashboard({ config, logger, runtime, accounts = {} }) {
-  if (!config.dashboardPassword || !config.sessionSecret || config.sessionSecret.length < 32) {
-    throw new Error('Dashboard password or session secret is not configured correctly.');
+  if (!config.sessionSecret || config.sessionSecret.length < 32) {
+    throw new Error('Session secret is not configured correctly.');
   }
   validateConfig(config);
   await fs.mkdir(config.dataDir, { recursive: true, mode: 0o700 });
@@ -30,9 +30,10 @@ async function startDashboard({ config, logger, runtime, accounts = {} }) {
   }));
 
   const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 8, standardHeaders: true, legacyHeaders: false });
+  // Public dashboard mode: no password/session login required.
   const requireAuth = (req, res, next) => {
-    if (!req.session?.authenticated) return res.status(401).json({ error: 'Authentication required' });
-    if (!['owner', 'admin'].includes(req.session.role)) req.session.role = 'admin';
+    req.session.authenticated = true;
+    req.session.role = 'owner';
     next();
   };
   const csrf = (req, res, next) => {
@@ -56,30 +57,15 @@ async function startDashboard({ config, logger, runtime, accounts = {} }) {
         return res.status(403).json({ error: 'Origin rejected' });
       }
     }
-    if (!req.session.csrfToken || req.get('x-csrf-token') !== req.session.csrfToken) return res.status(403).json({ error: 'CSRF validation failed' });
+    if (req.get('x-csrf-token') !== 'vortex-public-dashboard') return res.status(403).json({ error: 'CSRF validation failed' });
     next();
   };
 
   app.get('/health', (req, res) => res.json({ status: 'ok', bot: 'VORTEX' }));
-  app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
-  app.post('/api/login', loginLimiter, (req, res) => {
-    const password = typeof req.body?.password === 'string' ? req.body.password : '';
-    const role = password && password === config.dashboardPassword ? 'owner' :
-      (config.adminDashboardPassword && password === config.adminDashboardPassword ? 'admin' : '');
-    if (!role) {
-      logger.warn('DASHBOARD_LOGIN_FAILED');
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-    req.session.regenerate(err => {
-      if (err) return res.status(500).json({ error: 'Login failed' });
-      req.session.authenticated = true;
-      req.session.role = role;
-      req.session.csrfToken = require('node:crypto').randomBytes(24).toString('hex');
-      res.json({ ok: true, role, csrfToken: req.session.csrfToken });
-    });
-  });
-  app.post('/api/logout', requireAuth, csrf, (req, res) => req.session.destroy(() => res.json({ ok: true })));
-  app.get('/api/session', requireAuth, (req, res) => res.json({ authenticated: true, role: req.session.role, ownerID: config.ownerID || '', csrfToken: req.session.csrfToken }));
+  app.get('/login', (req, res) => res.redirect('/'));
+  app.post('/api/login', loginLimiter, (req, res) => res.json({ ok: true, role: 'owner', csrfToken: 'vortex-public-dashboard' }));
+  app.post('/api/logout', requireAuth, csrf, (req, res) => res.json({ ok: true }));
+  app.get('/api/session', (req, res) => res.json({ authenticated: true, role: 'owner', ownerID: config.ownerID || '', csrfToken: 'vortex-public-dashboard' }));
 
   app.use('/api', requireAuth, csrf);
   app.use('/api', (req, res, next) => {
@@ -349,10 +335,10 @@ async function startDashboard({ config, logger, runtime, accounts = {} }) {
     req.on('close', () => clearInterval(timer));
   });
   app.use(express.static(path.join(__dirname, 'public'), { index: false, fallthrough: true }));
-  const serveDashboard = (req, res) => req.session?.authenticated ? res.sendFile(path.join(__dirname, 'public', 'index.html')) : res.redirect('/login');
+  const serveDashboard = (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html'));
   app.get('/', serveDashboard);
   app.get('/dashboard', serveDashboard);
-  app.get('/{*splat}', (req, res) => req.session?.authenticated ? res.sendFile(path.join(__dirname, 'public', 'index.html')) : res.redirect('/login'));
+  app.get('/{*splat}', serveDashboard);
   app.use((err, req, res, next) => {
     logger.error('DASHBOARD_ERROR', { error: err.message });
     if (res.headersSent) return next(err);
