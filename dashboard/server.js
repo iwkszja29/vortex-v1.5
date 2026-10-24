@@ -17,7 +17,7 @@ async function startDashboard({ config, logger, runtime, accounts = {} }) {
   await fs.mkdir(config.dataDir, { recursive: true, mode: 0o700 });
   const app = express();
   app.disable('x-powered-by');
-  app.set('trust proxy', process.env.NODE_ENV === 'production' ? true : false);
+  app.set('trust proxy', process.env.NODE_ENV === 'production' ? 1 : false);
   app.use(helmet({ contentSecurityPolicy: { directives: {
     defaultSrc: ["'self'"], scriptSrc: ["'self'"],
     styleSrc: ["'self'", 'https://fonts.googleapis.com'],
