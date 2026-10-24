@@ -1,3 +1,4 @@
+const express = require('express');
 const { startDashboard } = require('./dashboard/server');
 const { createBotRuntime } = require('./utils/botRuntime');
 const { createLogger } = require('./utils/logger');
