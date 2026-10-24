@@ -17,7 +17,7 @@ async function startDashboard({ config, logger, runtime, accounts = {} }) {
   await fs.mkdir(config.dataDir, { recursive: true, mode: 0o700 });
   const app = express();
   app.disable('x-powered-by');
-  app.set('trust proxy', process.env.NODE_ENV === 'production' ? 1 : false);
+  app.set('trust proxy', process.env.NODE_ENV === 'production' ? true : false);
   app.use(helmet({ contentSecurityPolicy: { directives: {
     defaultSrc: ["'self'"], scriptSrc: ["'self'"],
     styleSrc: ["'self'", 'https://fonts.googleapis.com'],
@@ -25,7 +25,7 @@ async function startDashboard({ config, logger, runtime, accounts = {} }) {
   } } }));
   app.use(express.json({ limit: '256kb' }));
   app.use(session({
-    name: 'vortex.sid', secret: config.sessionSecret, resave: false, saveUninitialized: false,
+    name: 'vortex.sid', secret: config.sessionSecret, resave: false, saveUninitialized: false, proxy: process.env.NODE_ENV === 'production',
     cookie: { httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production', maxAge: 1000 * 60 * 60 * 8 }
   }));
 
