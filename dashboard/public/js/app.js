@@ -266,27 +266,6 @@ $('#logout').addEventListener('click', async () => {
   try { await api('/api/logout', { method: 'POST', body: '{}' }); } finally { location.href = '/login'; }
 });
 $('#menu').addEventListener('click', () => $('#sidebar').classList.toggle('open'));
-function navigateDashboardLink(a) {
-  if (!a || !a.matches('#nav a[href^="#"]')) return;
-  const id = a.getAttribute('href').slice(1);
-  const page = document.getElementById(id);
-  if (!page) return;
-  e.preventDefault();
-  const show = () => {
-    $('.page').forEach(p => p.classList.toggle('active', p.id === id));
-    $('#nav a').forEach(n => n.classList.toggle('active', n === a));
-    $('#page-title').textContent = a.textContent.trim().replace(/^[^a-zA-Z]+/, '');
-    $('#sidebar').classList.remove('open');
-  };
-  if (a.id === 'messenger-nav') {
-    api(messengerQuery('/api/messenger/status')).then(state => {
-      if (!state.configured || !state.connected) return notice('Link and connect the account first to unlock Messenger.', true);
-      show();
-    }).catch(error => notice(error.message, true));
-    return;
-  }
-  show();
-}
 document.addEventListener('click', e => {
   const a = e.target.closest('#nav a[href^="#"]');
   if (!a) return;
