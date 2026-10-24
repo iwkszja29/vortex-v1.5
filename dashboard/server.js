@@ -43,8 +43,14 @@ async function startDashboard({ config, logger, runtime, accounts = {} }) {
       try { originUrl = new URL(origin); }
       catch { return res.status(403).json({ error: 'Origin rejected' }); }
       const requestHost = String(req.get('host') || '').toLowerCase();
+      const trustedHosts = new Set([
+        requestHost,
+        ...(process.env.PUBLIC_ORIGIN || '').split(',').map(value => {
+          try { return new URL(value.trim()).host.toLowerCase(); } catch { return ''; }
+        }).filter(Boolean)
+      ]);
       if (!['http:', 'https:'].includes(originUrl.protocol) ||
-          originUrl.host.toLowerCase() !== requestHost ||
+          !trustedHosts.has(originUrl.host.toLowerCase()) ||
           originUrl.username || originUrl.password || originUrl.pathname !== '/' ||
           originUrl.search || originUrl.hash) {
         return res.status(403).json({ error: 'Origin rejected' });
