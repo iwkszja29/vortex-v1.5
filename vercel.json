@@ -3,6 +3,10 @@
   "framework": null,
   "rewrites": [
     {
+      "source": "/",
+      "destination": "https://vortex-v2-dashboard.onrender.com/"
+    },
+    {
       "source": "/(.*)",
       "destination": "https://vortex-v2-dashboard.onrender.com/$1"
     }
