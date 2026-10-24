@@ -343,7 +343,9 @@ async function startDashboard({ config, logger, runtime, accounts = {} }) {
     req.on('close', () => clearInterval(timer));
   });
   app.use(express.static(path.join(__dirname, 'public'), { index: false, fallthrough: true }));
-  app.get('/', (req, res) => req.session?.authenticated ? res.sendFile(path.join(__dirname, 'public', 'index.html')) : res.redirect('/login'));
+  const serveDashboard = (req, res) => req.session?.authenticated ? res.sendFile(path.join(__dirname, 'public', 'index.html')) : res.redirect('/login');
+  app.get('/', serveDashboard);
+  app.get('/dashboard', serveDashboard);
   app.get('/{*splat}', (req, res) => req.session?.authenticated ? res.sendFile(path.join(__dirname, 'public', 'index.html')) : res.redirect('/login'));
   app.use((err, req, res, next) => {
     logger.error('DASHBOARD_ERROR', { error: err.message });
