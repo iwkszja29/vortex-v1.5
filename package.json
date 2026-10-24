@@ -1,6 +1,6 @@
 {
   "name":"vortex-bot","version":"1.0.0","private":true,"description":"VORTEX Messenger Bot and secured dashboard",
-  "main":"index.js","engines":{"node":">=20 <23"},
+  "main":"index.js","engines":{"node":">=20 <25"},
   "scripts":{"start":"node index.js","test":"node --test","check":"node scripts/check.js"},
   "dependencies":{"@dongdev/fca-unofficial":"^4.0.3","express":"^5.1.0","express-session":"^1.18.2","helmet":"^8.1.0","express-rate-limit":"^8.0.1"},
   "devDependencies":{}
