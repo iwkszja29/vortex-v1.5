@@ -1,20 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "buildCommand": "npm run check",
-  "outputDirectory": "dashboard/public",
   "rewrites": [
     {
-      "source": "/login",
-      "destination": "/login.html"
-    },
-    {
-      "source": "/",
-      "destination": "/index.html"
-    },
-    {
       "source": "/(.*)",
-      "destination": "/$1"
+      "destination": "https://vortex-v2-dashboard.onrender.com/$1"
     }
   ]
 }
