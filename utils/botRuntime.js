@@ -561,7 +561,9 @@ function createBotRuntime({ config, logger }) {
     },
     get api() { return api; },
     async editCommand(name, source) {
-      if (!/^[a-z0-9_-]{1,32}\.js$/i.test(name)) throw new Error('Invalid command filename');
+      // Normalize dashboard input before validating; mobile keyboards may add whitespace.
+      name = typeof name === 'string' ? name.trim() : '';
+      if (!/^[a-z0-9_-]{1,32}\.js$/i.test(name)) throw new Error('Invalid command filename. Use a name like nm.js (letters, numbers, _ or - only).');
       const vm = require('node:vm');
       new vm.Script(source, { filename: name });
       const target = path.resolve(cmdsDir, name);
@@ -577,7 +579,8 @@ function createBotRuntime({ config, logger }) {
       return result;
     },
     async deleteCommand(name) {
-      if (!/^[a-z0-9_-]{1,32}\.js$/i.test(name)) throw new Error('Invalid command filename');
+      name = typeof name === 'string' ? name.trim() : '';
+      if (!/^[a-z0-9_-]{1,32}\.js$/i.test(name)) throw new Error('Invalid command filename. Use a name like nm.js (letters, numbers, _ or - only).');
       const target = path.resolve(cmdsDir, name);
       if (path.dirname(target) !== path.resolve(cmdsDir)) throw new Error('Invalid path');
       await fs.unlink(target);
