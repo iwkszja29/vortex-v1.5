@@ -67,24 +67,44 @@ function createBotRuntime({ config, logger }) {
   const seenCommandMessages = new Map();
   const repeatingMessages = new Map();
   function clearRepeatingMessages() {
-    for (const task of repeatingMessages.values()) clearInterval(task.timer);
+    for (const task of repeatingMessages.values()) {
+      clearInterval(task.timer);
+      clearTimeout(task.inactivityTimer);
+    }
     repeatingMessages.clear();
   }
 
   const runtime = {
-    startRepeatingMessage({ threadID, senderID, message, intervalMs }) {
+    startRepeatingMessage({ threadID, senderID, messages, intervalMs, inactivityMs = 16 * 60 * 1000 }) {
       const thread = String(threadID);
       if (repeatingMessages.has(thread)) return { started: false, reason: 'already-running' };
       if (!api || typeof api.sendMessage !== 'function') return { started: false, reason: 'offline' };
-      if (!message || !Number.isFinite(intervalMs) || intervalMs < 10000 || intervalMs > 86400000) {
+      if (!Array.isArray(messages) || messages.length !== 2 || messages.some(message => !String(message || '').trim()) ||
+          !Number.isFinite(intervalMs) || intervalMs < 15000 || intervalMs > 86400000) {
         return { started: false, reason: 'invalid-input' };
       }
-      const task = { senderID: String(senderID), message: String(message), intervalMs, busy: false, timer: null };
+      const task = { senderID: String(senderID), messages: messages.map(String), intervalMs, inactivityMs, busy: false, timer: null, inactivityTimer: null, replied: false };
+      const finishForInactivity = async () => {
+        if (repeatingMessages.get(thread) !== task) return;
+        clearInterval(task.timer);
+        clearTimeout(task.inactivityTimer);
+        repeatingMessages.delete(thread);
+        logger.info('REPEATING_MESSAGE_INACTIVITY_STOPPED', { threadID: thread, inactivityMs });
+        try {
+          if (api && status === 'connected') {
+            await humanWriter.wrap(api).sendMessage('ℹ️ انتهت 16 دقيقة دون رد من أعضاء المحادثة؛ أوقفت التكرار تلقائياً.', thread);
+          }
+        } catch (error) {
+          logger.warn('REPEATING_MESSAGE_NOTICE_FAILED', { threadID: thread, error: String(error?.message || error).slice(0, 160) });
+        }
+      };
+      task.inactivityTimer = setTimeout(finishForInactivity, inactivityMs);
       task.timer = setInterval(async () => {
-        if (task.busy || !api || status !== 'connected') return;
+        if (task.busy || !api || status !== 'connected' || repeatingMessages.get(thread) !== task) return;
         task.busy = true;
         try {
-          await humanWriter.wrap(api).sendMessage(task.message, thread);
+          await humanWriter.wrap(api).sendMessage(task.messages[0], thread);
+          await humanWriter.wrap(api).sendMessage(task.messages[1], thread);
         } catch (error) {
           logger.warn('REPEATING_MESSAGE_FAILED', { threadID: thread, error: String(error?.message || error).slice(0, 160) });
         } finally {
@@ -92,15 +112,35 @@ function createBotRuntime({ config, logger }) {
         }
       }, intervalMs);
       task.timer.unref?.();
+      task.inactivityTimer.unref?.();
       repeatingMessages.set(thread, task);
-      logger.info('REPEATING_MESSAGE_STARTED', { threadID: thread, intervalMs });
-      return { started: true, intervalMs };
+      logger.info('REPEATING_MESSAGE_STARTED', { threadID: thread, intervalMs, inactivityMs, messageCount: 2 });
+      return { started: true, intervalMs, inactivityMs };
+    },
+    noteRepeatingMessageReply(event) {
+      if (!event?.threadID || !event?.senderID || !String(event.body || '').trim()) return;
+      const task = repeatingMessages.get(String(event.threadID));
+      if (!task || String(event.senderID) === task.senderID) return;
+      clearTimeout(task.inactivityTimer);
+      task.inactivityTimer = setTimeout(async () => {
+        if (repeatingMessages.get(String(event.threadID)) !== task) return;
+        clearInterval(task.timer);
+        repeatingMessages.delete(String(event.threadID));
+        logger.info('REPEATING_MESSAGE_INACTIVITY_STOPPED', { threadID: String(event.threadID), inactivityMs: task.inactivityMs });
+        try {
+          if (api && status === 'connected') await humanWriter.wrap(api).sendMessage('ℹ️ مرّت 16 دقيقة دون رد جديد؛ أوقفت التكرار تلقائياً.', String(event.threadID));
+        } catch (error) {
+          logger.warn('REPEATING_MESSAGE_NOTICE_FAILED', { threadID: String(event.threadID), error: String(error?.message || error).slice(0, 160) });
+        }
+      }, task.inactivityMs);
+      task.inactivityTimer.unref?.();
     },
     stopRepeatingMessage(threadID) {
       const thread = String(threadID);
       const task = repeatingMessages.get(thread);
       if (!task) return { stopped: false, reason: 'not-running' };
       clearInterval(task.timer);
+      clearTimeout(task.inactivityTimer);
       repeatingMessages.delete(thread);
       logger.info('REPEATING_MESSAGE_STOPPED', { threadID: thread });
       return { stopped: true };
@@ -314,6 +354,7 @@ function createBotRuntime({ config, logger }) {
       nicknameGuard.handle(event).catch(e => logger.warn('NICKNAME_GUARD_FAILED', { error: String(e.message || e).slice(0, 200) }));
       if (!event || !['message', 'message_reply', 'messageCreate'].includes(event.type) || !event.body || !event.threadID) return;
       const body = String(event.body).trim();
+      runtime.noteRepeatingMessageReply(event);
       // Strict allow-list: only IDs configured as Owners/Admins may invoke commands or answer command prompts.
       // This intentionally keeps ordinary group messages from triggering command handlers or replies.
       if (!isAuthorizedSender(event.senderID, config.ownerIDs || [config.ownerID], config.adminIDs || [])) return;
