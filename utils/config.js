@@ -37,7 +37,7 @@ function loadConfig() {
     adminDashboardPassword: process.env.ADMIN_DASHBOARD_PASSWORD || '',
     dataDir,
     port: Number(process.env.PORT) || 3000,
-    dashboardPassword: process.env.DASHBOARD_PASSWORD || 'vortex110',
+    dashboardPassword: process.env.DASHBOARD_PASSWORD || 'vortex5000',
     sessionSecret,
     appStateJson: process.env.APPSTATE_JSON || '',
     appStateFile: process.env.APPSTATE_FILE || ''
