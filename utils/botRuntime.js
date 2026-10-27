@@ -55,7 +55,7 @@ function createBotRuntime({ config, logger }) {
   }
   const nicknameGuard = new NicknameGuard({ getApi: () => api, logger, nickname: '𝑽𝑶𝑹𝑻𝑬𝑿 →' });
   const humanWriter = createHumanWriter({
-    logger, minIntervalMs: 1200, globalIntervalMs: 900, duplicateWindowMs: 8000, maxPerMinute: 20,
+    logger, minIntervalMs: 5000, globalIntervalMs: 2500, duplicateWindowMs: 30000, maxPerMinute: 8, circuitPauseMs: 30 * 60 * 1000, maxConsecutiveFailures: 2,
     onSafetyStop: ({ type, reason }) => {
       clearRepeatingMessages();
       logger.warn('OUTBOUND_AUTOMATION_STOPPED', { type, reason });
