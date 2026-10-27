@@ -205,7 +205,7 @@ async function loadMessenger(){if(!$('#messenger-connection'))return;try{const s
 function renderMessengerThreads(){const q=($('#messenger-search').value||'').toLowerCase(),v=messengerThreads.filter(t=>(t.name+' '+t.snippet).toLowerCase().includes(q));$('#messenger-inbox-count').textContent=messengerFolder==='inbox'?String(messengerThreads.length):'—';$('#messenger-threads').innerHTML=v.map(t=>'<button class="messenger-thread '+(messengerThread&&messengerThread.threadID===t.threadID?'active':'')+'" data-messenger-thread="'+esc(t.threadID)+'"><span class="messenger-avatar">'+esc((t.name||'?').slice(0,1).toUpperCase())+'</span><span class="messenger-thread-copy"><b>'+esc(t.name||'Conversation')+'</b><small>'+esc(t.snippet||'No preview')+'</small><small>'+esc(messengerTime(t.timestamp))+'</small></span>'+(t.unreadCount?'<i>'+esc(String(t.unreadCount))+'</i>':'')+'</button>').join('')||'<p class="muted">No conversations returned for this folder, or the library does not expose it.</p>';}
 async function openMessengerThread(id){const t=messengerThreads.find(x=>x.threadID===id);if(!t)return;messengerThread=t;$('#messenger-chat-title').textContent=t.name||'Conversation';$('#messenger-chat-subtitle').textContent='Thread ID: '+id;$('#messenger-request-actions').hidden=messengerFolder!=='requests'||currentRole!=='owner';$('#messenger-reply-form').hidden=currentRole!=='owner';$('#messenger-messages').innerHTML='<p class="muted">Loading messages…</p>';renderMessengerThreads();try{const d=await api(messengerQuery('/api/messenger/threads/'+encodeURIComponent(id)+'/messages'));$('#messenger-messages').innerHTML=(d.messages||[]).map(m=>'<div class="messenger-bubble '+(m.senderID===ownerID?'outgoing':'')+'"><p>'+esc(m.body||(m.isUnsent?'Message removed':''))+'</p><small>'+esc(messengerTime(m.timestamp))+'</small></div>').join('')||'<p class="muted">No messages returned for this conversation.</p>';$('#messenger-messages').scrollTop=$('#messenger-messages').scrollHeight;}catch(e){$('#messenger-messages').innerHTML='<p class="muted">'+esc(e.message)+'</p>';}}
 async function messengerRequestAction(action){if(!messengerThread)return;try{await api(messengerQuery('/api/messenger/requests/'+encodeURIComponent(messengerThread.threadID)),{method:'POST',body:JSON.stringify({action})});notice(action==='accept'?'Request accepted.':'Request declined.');messengerThread=null;await loadMessenger();$('#messenger-messages').innerHTML='<p class="muted">Choose a conversation.</p>';}catch(e){notice(e.message,true);}}
-function bindMessenger(){$('#messenger-refresh')?.addEventListener('click',loadMessenger);$('#messenger-account')?.addEventListener('change',()=>{messengerThread=null;loadMessenger();});$('#messenger-search')?.addEventListener('input',renderMessengerThreads);$('.messenger-folder').forEach(b=>b.addEventListener('click',()=>{$('.messenger-folder').forEach(x=>x.classList.toggle('active',x===b));messengerFolder=b.dataset.folder;messengerThread=null;$('#messenger-messages').innerHTML='<p class="muted">Choose a conversation.</p>';$('#messenger-reply-form').hidden=true;loadMessenger();}));$('#messenger-threads')?.addEventListener('click',e=>{const b=e.target.closest('[data-messenger-thread]');if(b)openMessengerThread(b.dataset.messengerThread);});$('#messenger-accept')?.addEventListener('click',()=>messengerRequestAction('accept'));$('#messenger-decline')?.addEventListener('click',()=>messengerRequestAction('decline'));$('#messenger-reply-form')?.addEventListener('submit',async e=>{e.preventDefault();if(!messengerThread)return;const b=e.currentTarget.querySelector('button'),f=$('#messenger-reply');b.disabled=true;try{await api(messengerQuery('/api/messenger/threads/'+encodeURIComponent(messengerThread.threadID)+'/messages'),{method:'POST',body:JSON.stringify({message:f.value})});f.value='';notice('Reply sent.');await openMessengerThread(messengerThread.threadID);}catch(x){notice(x.message,true);}finally{b.disabled=false;}});}
+function bindMessenger(){$('#messenger-refresh')?.addEventListener('click',loadMessenger);$('#messenger-account')?.addEventListener('change',()=>{messengerThread=null;loadMessenger();});$('#messenger-search')?.addEventListener('input',renderMessengerThreads);$$('.messenger-folder').forEach(b=>b.addEventListener('click',()=>{$$('.messenger-folder').forEach(x=>x.classList.toggle('active',x===b));messengerFolder=b.dataset.folder;messengerThread=null;$('#messenger-messages').innerHTML='<p class="muted">Choose a conversation.</p>';$('#messenger-reply-form').hidden=true;loadMessenger();}));$('#messenger-threads')?.addEventListener('click',e=>{const b=e.target.closest('[data-messenger-thread]');if(b)openMessengerThread(b.dataset.messengerThread);});$('#messenger-accept')?.addEventListener('click',()=>messengerRequestAction('accept'));$('#messenger-decline')?.addEventListener('click',()=>messengerRequestAction('decline'));$('#messenger-reply-form')?.addEventListener('submit',async e=>{e.preventDefault();if(!messengerThread)return;const b=e.currentTarget.querySelector('button'),f=$('#messenger-reply');b.disabled=true;try{await api(messengerQuery('/api/messenger/threads/'+encodeURIComponent(messengerThread.threadID)+'/messages'),{method:'POST',body:JSON.stringify({message:f.value})});f.value='';notice('Reply sent.');await openMessengerThread(messengerThread.threadID);}catch(x){notice(x.message,true);}finally{b.disabled=false;}});}
 function applyRole(role) {
   currentRole = role === 'owner' ? 'owner' : 'admin';
   document.body.dataset.role = currentRole;
@@ -218,8 +218,8 @@ function applyRole(role) {
   if (currentRole !== 'owner') {
     const active = $('.page.active');
     if (active && active.hasAttribute('data-owner-only')) {
-      $('.page').forEach(p => p.classList.toggle('active', p.id === 'overview'));
-      $('#nav a').forEach(n => n.classList.toggle('active', n.getAttribute('href') === '#overview'));
+      $$('.page').forEach(p => p.classList.toggle('active', p.id === 'overview'));
+      $$('#nav a').forEach(n => n.classList.toggle('active', n.getAttribute('href') === '#overview'));
       $('#page-title').textContent = 'Overview';
     }
   }
@@ -276,15 +276,15 @@ document.addEventListener('click', e => {
   if (a.id === 'messenger-nav') {
     api(messengerQuery('/api/messenger/status')).then(state => {
       if (!state.configured || !state.connected) return notice('Link and connect the account first to unlock Messenger.', true);
-      $$('.page').forEach(p => p.classList.toggle('active', p.id === id));
-      $$('#nav a').forEach(n => n.classList.toggle('active', n === a));
+      $$$('.page').forEach(p => p.classList.toggle('active', p.id === id));
+      $$$('#nav a').forEach(n => n.classList.toggle('active', n === a));
       $('#page-title').textContent = a.textContent.trim().replace(/^[^a-zA-Z]+/, '');
       $('#sidebar').classList.remove('open');
     }).catch(error => notice(error.message, true));
     return;
   }
-  $$('.page').forEach(p => p.classList.toggle('active', p.id === id));
-  $$('#nav a').forEach(n => n.classList.toggle('active', n === a));
+  $$$('.page').forEach(p => p.classList.toggle('active', p.id === id));
+  $$$('#nav a').forEach(n => n.classList.toggle('active', n === a));
   $('#page-title').textContent = a.textContent.trim().replace(/^[^a-zA-Z]+/, '');
   $('#sidebar').classList.remove('open');
 });
