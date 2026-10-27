@@ -276,15 +276,15 @@ document.addEventListener('click', e => {
   if (a.id === 'messenger-nav') {
     api(messengerQuery('/api/messenger/status')).then(state => {
       if (!state.configured || !state.connected) return notice('Link and connect the account first to unlock Messenger.', true);
-      $$$('.page').forEach(p => p.classList.toggle('active', p.id === id));
-      $$$('#nav a').forEach(n => n.classList.toggle('active', n === a));
+      $('.page').forEach(p => p.classList.toggle('active', p.id === id));
+      $('#nav a').forEach(n => n.classList.toggle('active', n === a));
       $('#page-title').textContent = a.textContent.trim().replace(/^[^a-zA-Z]+/, '');
       $('#sidebar').classList.remove('open');
     }).catch(error => notice(error.message, true));
     return;
   }
-  $$$('.page').forEach(p => p.classList.toggle('active', p.id === id));
-  $$$('#nav a').forEach(n => n.classList.toggle('active', n === a));
+  $('.page').forEach(p => p.classList.toggle('active', p.id === id));
+  $('#nav a').forEach(n => n.classList.toggle('active', n === a));
   $('#page-title').textContent = a.textContent.trim().replace(/^[^a-zA-Z]+/, '');
   $('#sidebar').classList.remove('open');
 });
