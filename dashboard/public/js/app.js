@@ -218,8 +218,8 @@ function applyRole(role) {
   if (currentRole !== 'owner') {
     const active = $('.page.active');
     if (active && active.hasAttribute('data-owner-only')) {
-      $$$('.page').forEach(p => p.classList.toggle('active', p.id === 'overview'));
-      $$$('#nav a').forEach(n => n.classList.toggle('active', n.getAttribute('href') === '#overview'));
+      $('.page').forEach(p => p.classList.toggle('active', p.id === 'overview'));
+      $('#nav a').forEach(n => n.classList.toggle('active', n.getAttribute('href') === '#overview'));
       $('#page-title').textContent = 'Overview';
     }
   }
