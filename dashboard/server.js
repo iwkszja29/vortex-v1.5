@@ -30,10 +30,9 @@ async function startDashboard({ config, logger, runtime, accounts = {} }) {
   }));
 
   const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 8, standardHeaders: true, legacyHeaders: false });
-  // Public dashboard mode: no password/session login required.
   const requireAuth = (req, res, next) => {
-    req.session.authenticated = true;
-    req.session.role = 'owner';
+    if (!req.session?.authenticated) return res.status(401).json({ error: 'Authentication required' });
+    if (!['owner', 'admin'].includes(req.session.role)) req.session.role = 'admin';
     next();
   };
   const csrf = (req, res, next) => {
@@ -44,28 +43,37 @@ async function startDashboard({ config, logger, runtime, accounts = {} }) {
       try { originUrl = new URL(origin); }
       catch { return res.status(403).json({ error: 'Origin rejected' }); }
       const requestHost = String(req.get('host') || '').toLowerCase();
-      const trustedHosts = new Set([
-        requestHost,
-        ...(process.env.PUBLIC_ORIGIN || '').split(',').map(value => {
-          try { return new URL(value.trim()).host.toLowerCase(); } catch { return ''; }
-        }).filter(Boolean)
-      ]);
       if (!['http:', 'https:'].includes(originUrl.protocol) ||
-          !trustedHosts.has(originUrl.host.toLowerCase()) ||
+          originUrl.host.toLowerCase() !== requestHost ||
           originUrl.username || originUrl.password || originUrl.pathname !== '/' ||
           originUrl.search || originUrl.hash) {
         return res.status(403).json({ error: 'Origin rejected' });
       }
     }
-    if (req.get('x-csrf-token') !== 'vortex-public-dashboard') return res.status(403).json({ error: 'CSRF validation failed' });
+    if (!req.session.csrfToken || req.get('x-csrf-token') !== req.session.csrfToken) return res.status(403).json({ error: 'CSRF validation failed' });
     next();
   };
 
   app.get('/health', (req, res) => res.json({ status: 'ok', bot: 'VORTEX' }));
-  app.get('/login', (req, res) => res.redirect('/'));
-  app.post('/api/login', loginLimiter, (req, res) => res.json({ ok: true, role: 'owner', csrfToken: 'vortex-public-dashboard' }));
-  app.post('/api/logout', requireAuth, csrf, (req, res) => res.json({ ok: true }));
-  app.get('/api/session', (req, res) => res.json({ authenticated: true, role: 'owner', ownerID: config.ownerID || '', csrfToken: 'vortex-public-dashboard' }));
+  app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
+  app.post('/api/login', loginLimiter, (req, res) => {
+    const password = typeof req.body?.password === 'string' ? req.body.password : '';
+    const role = password && password === config.dashboardPassword ? 'owner' :
+      (config.adminDashboardPassword && password === config.adminDashboardPassword ? 'admin' : '');
+    if (!role) {
+      logger.warn('DASHBOARD_LOGIN_FAILED');
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    req.session.regenerate(err => {
+      if (err) return res.status(500).json({ error: 'Login failed' });
+      req.session.authenticated = true;
+      req.session.role = role;
+      req.session.csrfToken = require('node:crypto').randomBytes(24).toString('hex');
+      res.json({ ok: true, role, csrfToken: req.session.csrfToken });
+    });
+  });
+  app.post('/api/logout', requireAuth, csrf, (req, res) => req.session.destroy(() => res.json({ ok: true })));
+  app.get('/api/session', requireAuth, (req, res) => res.json({ authenticated: true, role: req.session.role, ownerID: config.ownerID || '', csrfToken: req.session.csrfToken }));
 
   app.use('/api', requireAuth, csrf);
   app.use('/api', (req, res, next) => {
