@@ -8,7 +8,7 @@ function loadCommands(dir, logger=console) {
     if (path.dirname(file)!==safeDir) { errors.push({file:entry.name,error:'Invalid path'}); continue; }
     try {
       const resolved=require.resolve(file); delete require.cache[resolved]; const cmd=require(file);
-      if (!cmd || typeof cmd.name!=='string' || !/^[a-z0-9_-]{1,32}$/i.test(cmd.name) || typeof cmd.execute!=='function' || !Array.isArray(cmd.aliases || [])) throw new Error('Invalid command schema');
+      if (!cmd || typeof cmd.name!=='string' || !/^[\p{L}\p{N}_-]{1,32}$/u.test(cmd.name) || typeof cmd.execute!=='function' || !Array.isArray(cmd.aliases || [])) throw new Error('Invalid command schema');
       const names=[cmd.name,...(cmd.aliases||[])].map(x=>String(x).toLowerCase());
       if (new Set(names).size!==names.length || names.some(n=>commands.has(n))) throw new Error('Duplicate command name or alias');
       const normalized={...cmd, name:cmd.name.toLowerCase(), aliases:(cmd.aliases||[]).map(x=>String(x).toLowerCase()), file:entry.name};
