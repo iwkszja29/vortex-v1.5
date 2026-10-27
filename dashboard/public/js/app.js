@@ -381,8 +381,8 @@ $('#new-command').addEventListener('click', () => {
 $('#cancel-editor').addEventListener('click', () => $('#editor-wrap').hidden = true);
 $('#save-command').addEventListener('click', async () => {
   try {
-    const file = $('#command-file').value.replace(/[\\u200B-\\u200D\\uFEFF]/g, '').trim();
-    if (!/^[a-z0-9_-]{1,32}\\.js$/i.test(file)) throw Error('اسم الملف غير صالح. اكتب nm.js فقط، باستخدام حروف إنجليزية أو أرقام أو _ أو - قبل .js.');
+    const file = $('#command-file').value.replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+    if (!/^[a-z0-9_-]{1,32}\.js$/i.test(file)) throw Error('اسم الملف غير صالح. اكتب nm.js فقط، باستخدام حروف إنجليزية أو أرقام أو _ أو - قبل .js.');
     $('#command-file').value = file;
     await api('/api/commands/' + encodeURIComponent(file) + '/save', { method: 'POST', body: JSON.stringify({ source: $('#command-source').value }) });
     $('#editor-wrap').hidden = true; await commands(); notice('Command validated and saved.');
