@@ -562,7 +562,7 @@ function createBotRuntime({ config, logger }) {
     get api() { return api; },
     async editCommand(name, source) {
       // Normalize dashboard input before validating; mobile keyboards may add whitespace.
-      name = typeof name === 'string' ? name.replace(/[\\u200B-\\u200D\\uFEFF]/g, '').trim() : '';
+      name = typeof name === 'string' ? name.replace(/[\u200B-\u200D\uFEFF]/g, '').trim() : '';
       if (!/^[a-z0-9_-]{1,32}\.js$/i.test(name)) throw new Error('Invalid command filename. Use a name like nm.js (letters, numbers, _ or - only).');
       const vm = require('node:vm');
       new vm.Script(source, { filename: name });
