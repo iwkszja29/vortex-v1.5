@@ -69,7 +69,14 @@ async function startDashboard({ config, logger, runtime, accounts = {} }) {
       req.session.authenticated = true;
       req.session.role = role;
       req.session.csrfToken = require('node:crypto').randomBytes(24).toString('hex');
-      res.json({ ok: true, role, csrfToken: req.session.csrfToken });
+      // Persist the authenticated session before reporting login success.
+      req.session.save(saveErr => {
+        if (saveErr) {
+          logger.error('DASHBOARD_SESSION_SAVE_FAILED', { error: String(saveErr.message || saveErr).slice(0, 160) });
+          return res.status(500).json({ error: 'Could not save login session' });
+        }
+        res.json({ ok: true, role, csrfToken: req.session.csrfToken });
+      });
     });
   });
   app.post('/api/logout', requireAuth, csrf, (req, res) => req.session.destroy(() => res.json({ ok: true })));
