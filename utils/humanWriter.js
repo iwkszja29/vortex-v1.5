@@ -1,11 +1,11 @@
 const DEFAULTS = {
-  minIntervalMs: 1200,
-  globalIntervalMs: 900,
-  duplicateWindowMs: 8000,
-  maxPerMinute: 20,
+  minIntervalMs: 5000,
+  globalIntervalMs: 2500,
+  duplicateWindowMs: 30000,
+  maxPerMinute: 8,
   failureWindowMs: 120000,
-  maxConsecutiveFailures: 3,
-  circuitPauseMs: 15 * 60 * 1000
+  maxConsecutiveFailures: 2,
+  circuitPauseMs: 30 * 60 * 1000
 };
 
 function createHumanWriter({ logger = console, onSafetyStop = () => {}, ...options } = {}) {
@@ -31,7 +31,7 @@ function createHumanWriter({ logger = console, onSafetyStop = () => {}, ...optio
   }
 
   function contentKey(value) {
-    try { return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : JSON.stringify(value); }
+    try { return typeof value === 'string' ? value.replace(/\\s+/g, ' ').trim() : JSON.stringify(value); }
     catch { return String(value); }
   }
 
@@ -48,13 +48,9 @@ function createHumanWriter({ logger = console, onSafetyStop = () => {}, ...optio
     if (pausedUntil === Infinity || (pausedUntil > Date.now())) return;
     pausedUntil = durationMs === Infinity ? Infinity : Date.now() + durationMs;
     pausedReason = reason;
-    logger.warn?.('OUTBOUND_SAFETY_PAUSE', {
-      reason, type, pauseMs: durationMs === Infinity ? null : durationMs
-    });
+    logger.warn?.('OUTBOUND_SAFETY_PAUSE', { reason, type, pauseMs: durationMs === Infinity ? null : durationMs });
     try { onSafetyStop({ type, reason, pausedUntil: Number.isFinite(pausedUntil) ? pausedUntil : null }); }
-    catch (error) {
-      logger.warn?.('OUTBOUND_SAFETY_CALLBACK_FAILED', { error: String(error?.message || error).slice(0, 120) });
-    }
+    catch (error) { logger.warn?.('OUTBOUND_SAFETY_CALLBACK_FAILED', { error: String(error?.message || error).slice(0, 120) }); }
   }
 
   function resetProtection() {
@@ -67,7 +63,7 @@ function createHumanWriter({ logger = console, onSafetyStop = () => {}, ...optio
   function handleSendFailure(error, threadID) {
     const message = String(error?.message || error);
     const normalized = message.toLowerCase();
-    const authFailure = /checkpoint|login approval|login required|invalid appstate|invalid cookie|cookie.{0,20}(expired|invalid)|session.{0,20}(expired|invalid)|not logged in|authentication failed|account disabled|two.factor|\b401\b|\b403\b|please log in/.test(normalized);
+    const authFailure = /checkpoint|login approval|login required|invalid appstate|invalid cookie|cookie.{0,20}(expired|invalid)|session.{0,20}(expired|invalid)|not logged in|authentication failed|account disabled|two.factor|\\b401\\b|\\b403\\b|please log in/.test(normalized);
     if (authFailure) {
       triggerPause('session-authentication', Infinity, 'session');
     } else if (/rate.?limit|too many|temporar|spam|blocked|try again|restricted|unusual activity|we limit how often|automated behavior|please wait before you try again/.test(normalized)) {
@@ -81,11 +77,7 @@ function createHumanWriter({ logger = console, onSafetyStop = () => {}, ...optio
         triggerPause('repeated-send-failures', config.circuitPauseMs, 'circuit-breaker');
       }
     }
-    logger.warn?.('OUTBOUND_SEND_FAILED', {
-      threadID,
-      error: message.slice(0, 180),
-      failureCountInWindow: recentFailures.length
-    });
+    logger.warn?.('OUTBOUND_SEND_FAILED', { threadID, error: message.slice(0, 180), failureCountInWindow: recentFailures.length });
   }
 
   function wrap(api) {
@@ -114,8 +106,7 @@ function createHumanWriter({ logger = console, onSafetyStop = () => {}, ...optio
             recentMessages.set(key, now);
             const send = async () => {
               const at = Date.now();
-              const wait = Math.max(0, config.globalIntervalMs - (at - lastGlobalSend),
-                config.minIntervalMs - (at - (lastThreadSend.get(threadID) || 0)));
+              const wait = Math.max(0, config.globalIntervalMs - (at - lastGlobalSend), config.minIntervalMs - (at - (lastThreadSend.get(threadID) || 0)));
               if (wait) await new Promise(resolve => setTimeout(resolve, wait));
               const started = Date.now();
               refreshPause(started);
