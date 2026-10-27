@@ -8,7 +8,7 @@ function normalizeArabic(value) {
 module.exports = {
   name: 'repeat',
   aliases: ['تشغيل', 'ايقاف', 'إيقاف', 'وقف'],
-  description: 'إرسال رسالة بشكل متكرر بفاصل زمني محدد (للمسؤولين)',
+  description: 'تكرار رسالتين بفاصل زمني مع الإيقاف عند غياب الرد',
   async execute(api, event) {
     const action = normalizeArabic(event.commandName || '');
     const isStop = ['ايقاف', 'وقف'].includes(action) || ['ايقاف', 'وقف'].includes(normalizeArabic(event.args[0] || ''));
@@ -19,7 +19,7 @@ module.exports = {
     if (isStop) {
       const result = event.runtime.stopRepeatingMessage(event.threadID);
       return api.sendMessage(
-        result.stopped ? '✅ تم إيقاف الرسالة المتكررة في هذه المحادثة.' : 'ℹ️ لا توجد رسالة متكررة تعمل في هذه المحادثة.',
+        result.stopped ? '✅ تم إيقاف الرسالتين المتكررتين في هذه المحادثة.' : 'ℹ️ لا توجد رسائل متكررة تعمل في هذه المحادثة.',
         event.threadID,
         event.messageID
       );
@@ -31,7 +31,7 @@ module.exports = {
     const match = normalizeArabic(durationToken).match(/^(\d+)(ث|ثانيه|ثواني|د|دقيقه|دقائق|s|sec|m|min)$/);
     if (!match) {
       return api.sendMessage(
-        'الاستخدام: ' + event.config.prefix + 'تشغيل <النص> <المدة>\nمثال: ' + event.config.prefix + 'تشغيل هسم كششكك 25ث\nاستخدم د للدقائق، مثل 2د. للإيقاف: ' + event.config.prefix + 'إيقاف',
+        'الاستخدام: ' + event.config.prefix + 'تشغيل <الرسالة الأولى> | <الرسالة الثانية> <الفاصل>\nمثال: ' + event.config.prefix + 'تشغيل صباح الخير | كيفكم؟ 30ث\nالفاصل لا يقل عن 15 ثانية. يتوقف التكرار بعد 16 دقيقة دون رد. للإيقاف: ' + event.config.prefix + 'إيقاف',
         event.threadID,
         event.messageID
       );
@@ -41,32 +41,38 @@ module.exports = {
     const unit = match[2];
     const isMinutes = ['د', 'دقيقه', 'دقائق', 'm', 'min'].includes(unit);
     const intervalMs = amount * (isMinutes ? 60000 : 1000);
-    const message = args.join(' ').trim();
-    if (!message) {
-      return api.sendMessage('❗ اكتب الرسالة التي تريد تكرارها قبل المدة.', event.threadID, event.messageID);
+    const messageText = args.join(' ').trim();
+    const separator = messageText.indexOf('|');
+    if (separator < 0) {
+      return api.sendMessage('❗ اكتب رسالتين وافصل بينهما بعلامة | مثال: صباح الخير | كيفكم؟', event.threadID, event.messageID);
     }
-    if (!Number.isSafeInteger(amount) || amount <= 0 || intervalMs < 10000 || intervalMs > 86400000) {
-      return api.sendMessage('⏱️ المدة يجب أن تكون بين 10 ثوانٍ و24 ساعة.', event.threadID, event.messageID);
+    const messages = [messageText.slice(0, separator).trim(), messageText.slice(separator + 1).trim()];
+    if (messages.some(message => !message)) {
+      return api.sendMessage('❗ يجب كتابة الرسالتين كاملتين على جانبي علامة |.', event.threadID, event.messageID);
+    }
+    if (!Number.isSafeInteger(amount) || amount <= 0 || intervalMs < 15000 || intervalMs > 86400000) {
+      return api.sendMessage('⏱️ الفاصل يجب أن يكون بين 15 ثانية و24 ساعة.', event.threadID, event.messageID);
     }
 
     const result = event.runtime.startRepeatingMessage({
       threadID: event.threadID,
       senderID: event.senderID,
-      message,
-      intervalMs
+      messages,
+      intervalMs,
+      inactivityMs: 16 * 60 * 1000
     });
     if (!result.started) {
       const reason = result.reason === 'already-running'
-        ? 'توجد رسالة متكررة تعمل بالفعل في هذه المحادثة. أوقفها أولاً ثم ابدأ من جديد.'
+        ? 'توجد رسائل متكررة تعمل بالفعل في هذه المحادثة. أوقفها أولاً ثم ابدأ من جديد.'
         : result.reason === 'offline'
           ? 'البوت غير متصل حالياً.'
-          : 'تعذر بدء الإرسال؛ تحقق من الرسالة والمدة.';
+          : 'تعذر بدء الإرسال؛ تحقق من الرسالتين والفاصل الزمني.';
       return api.sendMessage('⚠️ ' + reason, event.threadID, event.messageID);
     }
 
     const shownInterval = isMinutes ? amount + ' دقيقة/دقائق' : amount + ' ثانية/ثوانٍ';
     return api.sendMessage(
-      '✅ تم تشغيل الإرسال المتكرر. سأرسل الرسالة كل ' + shownInterval + '.\nلإيقافه اكتب: ' + event.config.prefix + 'إيقاف',
+      '✅ تم تشغيل الرسالتين بالتتابع كل ' + shownInterval + '. إذا لم يرسل أي عضو آخر رسالة لمدة 16 دقيقة، سيتوقف التكرار تلقائياً. لن يغادر البوت المجموعة تلقائياً. للإيقاف يدوياً: ' + event.config.prefix + 'إيقاف',
       event.threadID,
       event.messageID
     );
