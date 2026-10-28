@@ -7,8 +7,12 @@ const { loadConfig } = require('./utils/config');
 async function main() {
   const logger = createLogger();
   const config = loadConfig();
+  const path = require('node:path');
+  const secondaryDataDir = path.join(config.dataDir, 'account-2');
+  // Each runtime checks the other runtime's persisted AppState before saving/connecting.
+  config.peerAppStateFiles = [path.join(secondaryDataDir, 'appstate.json')];
   const runtime = createBotRuntime({ config, logger });
-  const secondConfig = { ...config, dataDir: require('node:path').join(config.dataDir, 'account-2'), appStateJson: '', appStateFile: '', ownerIDs: [...config.ownerIDs], adminIDs: [...config.adminIDs] };
+  const secondConfig = { ...config, dataDir: secondaryDataDir, peerAppStateFiles: [path.join(config.dataDir, 'appstate.json')], appStateJson: '', appStateFile: '', ownerIDs: [...config.ownerIDs], adminIDs: [...config.adminIDs] };
   const secondRuntime = createBotRuntime({ config: secondConfig, logger });
   const server = await startDashboard({ config, logger, runtime, accounts: { primary: runtime, secondary: secondRuntime, secondaryConfig: secondConfig } });
   await Promise.all([
