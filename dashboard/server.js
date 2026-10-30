@@ -43,8 +43,23 @@ async function startDashboard({ config, logger, runtime, accounts = {} }) {
       try { originUrl = new URL(origin); }
       catch { return res.status(403).json({ error: 'Origin rejected' }); }
       const requestHost = String(req.get('host') || '').toLowerCase();
+      // Vercel rewrites requests to the Render origin. In that setup the browser
+      // Origin is the public Vercel hostname while Host is the private upstream
+      // Render hostname. Trust only explicit public origins (or the direct host).
+      const configuredOrigins = String(process.env.DASHBOARD_ALLOWED_ORIGINS || 'https://vortex-v2-seven.vercel.app,https://vortex-v2-magnus-1c6d.vercel.app,https://vortex-v2-git-main-magnus-1c6d.vercel.app')
+        .split(',').map(value => value.trim()).filter(Boolean);
+      const allowedHosts = new Set([requestHost]);
+      for (const value of configuredOrigins) {
+        try {
+          const allowed = new URL(value);
+          if (['http:', 'https:'].includes(allowed.protocol) && !allowed.username && !allowed.password &&
+              allowed.pathname === '/' && !allowed.search && !allowed.hash) {
+            allowedHosts.add(allowed.host.toLowerCase());
+          }
+        } catch {}
+      }
       if (!['http:', 'https:'].includes(originUrl.protocol) ||
-          originUrl.host.toLowerCase() !== requestHost ||
+          !allowedHosts.has(originUrl.host.toLowerCase()) ||
           originUrl.username || originUrl.password || originUrl.pathname !== '/' ||
           originUrl.search || originUrl.hash) {
         return res.status(403).json({ error: 'Origin rejected' });
